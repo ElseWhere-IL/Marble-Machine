@@ -1,3 +1,5 @@
+#include <Servo.h>
+
 #define BTN_L 1
 #define BTN_R 2
 #define FLIP_L 3
@@ -8,9 +10,32 @@
 #define HALL 5
 #define ELEVATOR 6
 
+#define TRACK_SELECT 9
+
+Servo wall, track;
+
 void setup() {
-  // put your setup code here, to run once:
-  setServo(upAngle); //TODO
+
+  //BUTTONS
+  pinMode(BTN_L, INPUT);
+  pinMode(BTN_R, INPUT);
+
+  //FLIPPERS
+  pinMode(FLIP_L, OUTPUT);
+  pinMode(FLIP_R, OUTPUT);
+
+  //MISC
+  pinMode(LDR, INPUT);
+  pinMode(HALL, INPUT);
+  pinMode(ELEVATOR, OUTPUT);
+  pinMode(TRACK_SELECT, OUTPUT);
+  
+  //SERVOS
+  wall.attach(7);
+  track.attach(8);
+  
+  setWall(true);
+  setTrack(true);
 }
 
 void loop() {
@@ -19,10 +44,10 @@ void loop() {
     addPoint(); // Increment player points
   }
   
-  rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin //TODO
+  rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin
     
   updatePinballArms(); // If player pushed buttons, activates pinball floppers
-  updateBallGates(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
+  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
 }
 
 bool lastLDRState = true;
@@ -40,13 +65,28 @@ void addPoint(){
   //TODO: effect
 }
 
-void wheelStatus(){
-  // TODO
+const unsigned byte NumMagnets = 5;
+const float MaxSpeed = 3.5;
+
+bool wasMagnet;
+unsigned long lastMagnetTime
+float wheelSpeed;
+void wheelStatus(){  
+  bool isMagnet = digitalRead(HALL); 
+
+  if (isMagnet && !notMagnet){
+    float perSec = (millis() - lastMagnetTime)*5 / 1000;
+    wheelSpeed = map(perSec, 0, MaxSpeed, 0, 255);
+    lastMagnetTime = millis();
+  }
+
+  wasMagnet = isMagnet;
+  return wheelSpeed;
 }
 
 // starts and stops elevator rotation based on wheel
-void rotateElevator(bool rotate){
-  digitalWrite(ELEVATOR, rotate);
+void rotateElevator(int spd){
+  analogWrite(ELEVATOR, spd);
 }
 
 // returns true if button is pressed
@@ -86,23 +126,39 @@ void updatePinballArms(){
   lastBtnRight = btnRight;
 }
 
-int upAngle = 45, downAngle = 135;
+int upAngleWall = 45, downAngleWall = 135;
+int upAngleTrack = 45, downAngleTrack = 135;
+void setWall(bool up){
+  if (up)
+    wall.set(upAngleWall);
+   else
+    wall.set(downAngleWall);
+}
+
+void setTrack(bool up){
+  if (up)
+    track.set(upAngleTrack);
+   else
+    track.set(downAngleTrack);
+}
+
 bool isUp = true;
 int switchDelay = 4000, lastSwitched = 0;
-void updateBallGates(){
+void updateMovingWall(){
   // switch correct track after delay
   if (millis() - lastSwitched >= switchDelay){
 
     // move gate to correct angle
     isUp = !isUp;
-    if (isUp)
-      setServo(upAngle); //TODO
-    else
-      setServo(downAngle); //TODO
-
+    setWall(isUp);
+    
     // save last time switched
     lastSwitched = millis();
   }
 
   // TODO: PLAYER CONTROLLED TRACK SELECTOR
+}
+
+void updateTrackSelector(){
+  setTrack(digitalRead(TRACK_SELECT));
 }
