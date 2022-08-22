@@ -9,9 +9,9 @@
 
 #define HALL 5
 #define ELEVATOR 6
+#define TESTLED 6
 
-#define TRACK_SELECT 9
-
+#define TRACK_SELECT 8
 Servo wall, track;
 
 void setup() {
@@ -30,9 +30,10 @@ void setup() {
   pinMode(HALL, INPUT);
   pinMode(ELEVATOR, OUTPUT);
   pinMode(TRACK_SELECT, OUTPUT);
+  pinMode(TESTLED, OUTPUT);
   
   //SERVOS
-  wall.attach(7);
+  wall.attach(10);
   track.attach(8);
   
   setWall(true);
@@ -47,10 +48,12 @@ void loop() {
   
   rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin
     
-  updatePinballArms(); // If player pushed buttons, activates pinball floppers
-  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever*/
+  updatePinballArms(); // If player pushed buttons, activates pinball floppers*/
+  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
 
-  Serial.println(wheelStatus());
+  int wspeed = wheelStatus();
+  //Serial.println(wspeed);
+  analogWrite(TESTLED, wspeed);
 }
 
 bool lastLDRState = true;
@@ -85,7 +88,7 @@ float wheelStatus(){
     float perSec = 1 / (NumMagnets * timeSinceMagnet / 1000.0);
     wheelSpeed = perSec/MaxSpeed * 255;
     lastMagnetTime = millis();
-  } else if (millis() - lastSlowTime >= wheelStopTime / 255){ // constantly slow down wheel
+  } else if (timeSinceMagnet >= 1000 && millis() - lastSlowTime >= wheelStopTime / 255){ // constantly slow down wheel
     wheelSpeed = max(0, wheelSpeed-1);
     lastSlowTime = millis();
   }
@@ -136,7 +139,7 @@ void updatePinballArms(){
   lastBtnRight = btnRight;
 }
 
-int upAngleWall = 45, downAngleWall = 135;
+int upAngleWall = 90, downAngleWall = 150;
 int upAngleTrack = 45, downAngleTrack = 135;
 void setWall(bool up){
   if (up)
@@ -153,17 +156,18 @@ void setTrack(bool up){
 }
 
 bool isUp = true;
-int switchDelay = 4000, lastSwitched = 0;
+int switchDelay = 4000;
+unsigned long lastSwitched = 0;
 void updateMovingWall(){
   // switch correct track after delay
   if (millis() - lastSwitched >= switchDelay){
-
+    Serial.println(lastSwitched);
+    // save last time switched
+    lastSwitched = millis();
+    
     // move gate to correct angle
     isUp = !isUp;
     setWall(isUp);
-    
-    // save last time switched
-    lastSwitched = millis();
   }
 }
 
