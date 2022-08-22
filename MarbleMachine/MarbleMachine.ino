@@ -15,7 +15,8 @@
 Servo wall, track;
 
 void setup() {
-
+  Serial.begin(9600);
+  
   //BUTTONS
   pinMode(BTN_L, INPUT);
   pinMode(BTN_R, INPUT);
@@ -39,7 +40,7 @@ void setup() {
 }
 
 void loop() {
-  updateScreen(); // Screen refresh //TODO
+  /*updateScreen(); // Screen refresh //TODO
   if (ballPassed()) { // Check for passing balls
     addPoint(); // Increment player points
   }
@@ -47,7 +48,9 @@ void loop() {
   rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin
     
   updatePinballArms(); // If player pushed buttons, activates pinball floppers
-  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
+  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever*/
+
+  Serial.println(wheelStatus());
 }
 
 bool lastLDRState = true;
@@ -65,23 +68,30 @@ void addPoint(){
   //TODO: effect
 }
 
-const unsigned byte NumMagnets = 5;
-const float MaxSpeed = 3.5;
+const byte NumMagnets = 2;
+const float MaxSpeed = 2;
+const int wheelStopTime = 2000;
+
+int lastSlowTime;
 
 bool wasMagnet;
-unsigned long lastMagnetTime
+unsigned long lastMagnetTime;
 float wheelSpeed;
-void wheelStatus(){  
-  bool isMagnet = digitalRead(HALL); 
-
-  if (isMagnet && !notMagnet){
-    float perSec = (millis() - lastMagnetTime)*5 / 1000;
-    wheelSpeed = map(perSec, 0, MaxSpeed, 0, 255);
+float wheelStatus(){  
+  bool isMagnet = !digitalRead(HALL); 
+  int timeSinceMagnet = (millis() - lastMagnetTime);
+  
+  if (isMagnet && !wasMagnet){
+    float perSec = 1 / (NumMagnets * timeSinceMagnet / 1000.0);
+    wheelSpeed = perSec/MaxSpeed * 255;
     lastMagnetTime = millis();
+  } else if (millis() - lastSlowTime >= wheelStopTime / 255){ // constantly slow down wheel
+    wheelSpeed = max(0, wheelSpeed-1);
+    lastSlowTime = millis();
   }
 
   wasMagnet = isMagnet;
-  return wheelSpeed;
+  return min(wheelSpeed, 255);
 }
 
 // starts and stops elevator rotation based on wheel
@@ -92,7 +102,7 @@ void rotateElevator(int spd){
 // returns true if button is pressed
 // might need to invert return value
 // depends on button implementation
-bool buttonStatus(int button){
+bool buttonState(int button){
   return digitalRead(button);
 }
 
@@ -112,11 +122,11 @@ void updatePinballArms(){
     digitalWrite(FLIP_R, LOW);
 
   // turn flippers on if button is pressed and delay has passed
-  if (timeSinceFlipL >= flipDelay, btnLeft == true && lastBtnLeft = false){
+  if (timeSinceFlipL >= flipDelay && btnLeft == true && lastBtnLeft == false){
     digitalWrite(FLIP_L, HIGH);
     lastFlippedL = millis();
   }
-  if (timeSinceFlipR >= flipDelay, btnRight == true && lastBtnRight = false){
+  if (timeSinceFlipR >= flipDelay && btnRight == true && lastBtnRight == false){
     digitalWrite(FLIP_R, HIGH);
     lastFlippedR = millis();  
   }
@@ -130,16 +140,16 @@ int upAngleWall = 45, downAngleWall = 135;
 int upAngleTrack = 45, downAngleTrack = 135;
 void setWall(bool up){
   if (up)
-    wall.set(upAngleWall);
+    wall.write(upAngleWall);
    else
-    wall.set(downAngleWall);
+    wall.write(downAngleWall);
 }
 
 void setTrack(bool up){
   if (up)
-    track.set(upAngleTrack);
+    track.write(upAngleTrack);
    else
-    track.set(downAngleTrack);
+    track.write(downAngleTrack);
 }
 
 bool isUp = true;
