@@ -155,8 +155,6 @@ void updateMovingWall(){
     // save last time switched
     lastSwitched = millis();
   }
-
-  // TODO: PLAYER CONTROLLED TRACK SELECTOR
 }
 
 void updateTrackSelector(){
