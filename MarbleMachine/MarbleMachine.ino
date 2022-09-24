@@ -1,4 +1,7 @@
 #include <Servo.h>
+#include <RGBmatrixPanel.h>
+#include <DFRobotDFPlayerMini.h>
+#include <SoftwareSerial.h>
 
 #define BTN_L 1
 #define BTN_R 2
@@ -12,7 +15,27 @@
 #define TESTLED 6
 
 #define TRACK_SELECT 8
+
+// SCREEN
+#define CLK 11
+#define OE   9
+#define LAT 10
+#define A   A0
+#define B   A1
+#define C   A2
+#define D   A3
+
+RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false, 64);
+
+SoftwareSerial speakerSerial(12, 13); // RX, TX
+DFRobotDFPlayerMini speaker;
+
 Servo wall, track;
+int gameTime = 90;
+int points = 0;
+int startTime = 0, timeLeft = 1, lastTimeLeft = 0; // set timeLeft to 1 as loop only works if timeLeft > 0
+
+bool playing = false;
 
 void setup() {
   Serial.begin(9600);
@@ -38,26 +61,83 @@ void setup() {
   
   setWall(true);
   setTrack(true);
+
+  matrix.begin();
+
+  speakerSerial.begin(9600);
+  speaker.begin(speakerSerial);
+  speaker.volume(10);
 }
 
 void loop() {
-  /*updateScreen(); // Screen refresh //TODO
-  if (ballPassed()) { // Check for passing balls
-    addPoint(); // Increment player points
-  }
-  
-  rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin
-    
-  updatePinballArms(); // If player pushed buttons, activates pinball floppers*/
-  updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
+  if (playing){
+    timeLeft = (gameTime - (millis() - startTime)) / 1000; // calc time remaining
 
-  int wspeed = wheelStatus();
-  //Serial.println(wspeed);
-  analogWrite(TESTLED, wspeed);
+    if (timeLeft != lastTimeLeft) // time left changed, update screen
+      updateScreen();
+      
+    if (ballPassed()) { // Check for passing balls
+      addPoint(); // Increment player points
+    }
+    
+    rotateElevator(wheelStatus()); // Elevator rotates accordingly to wheel spin
+      
+    updatePinballArms(); // If player pushed buttons, activates pinball floppers
+    updateMovingWall(); // Randomely switches the track blocker up & down, listens to player's input ans switches the track lever
+  
+    /*int wspeed = wheelStatus();
+    analogWrite(TESTLED, wspeed);*/
+  
+    lastTimeLeft = timeLeft;
+
+    // end game when timer runs out
+    if (timeLeft <= 0){
+      playing = false;
+  
+      speaker.play(2); // play game over sound;
+      updateScreen();
+    }
+  } else{
+    playing = checkStartGame(); // check if player starts game
+  }
+
+
+}
+
+bool checkStartGame(){
+  //TODO
+}
+
+void updateScreen(){
+  int secLeft = timeLeft / 1000;
+  
+  matrix.fillScreen(matrix.Color333(0,0,0)); // clear screen
+
+  // draw titles
+  matrix.setTextSize(1);
+  matrix.setCursor(0,0);
+  matrix.print("TIME");
+
+  matrix.setCursor(32, 0);
+  matrix.print("SCORE");
+
+  // draw time
+  matrix.setTextSize(2);
+  
+  matrix.setCursor(0, 16);
+  if (secLeft < 10)
+    matrix.print(0);
+  matrix.print(secLeft);
+
+  // draw score
+  matrix.setCursor(32, 16);
+  if (points < 10)
+    matrix.print(0);
+  matrix.print(points);
 }
 
 bool lastLDRState = true;
-void ballPassed(){
+bool ballPassed(){
   bool LDRState = digitalRead(LDR);
   bool passed = !LDRState && lastLDRState; //laser is blocked and wasn't blocked before
   
@@ -65,9 +145,12 @@ void ballPassed(){
   return passed;
 }
 
-int points = 0;
 void addPoint(){
   points++;
+  
+  speaker.play(1); // play point sound
+  updateScreen();
+  
   //TODO: effect
 }
 
